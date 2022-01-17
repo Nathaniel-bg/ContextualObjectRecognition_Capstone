@@ -1,0 +1,22 @@
+# This file contains the context filters which are applied through comparison with the active object detection model
+
+City_Street:
+  nc: 11 #number of classes
+  names: ['person', 'car', 'bicycle', 'motorcycle', 'bus', 'truck', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'train', 'airplane']
+
+
+livingroom:
+  nc: 15
+  names:  ['person', 'bird', 'cat', 'dog', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'bottle', 'cup', 'fork', 'knife', 'spoon', 'bowl',
+           'banana', 'apple', 'potted plant', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'vase', 'scissors','bottle','cell phone']
+
+Nate_basement:
+  nc: 3
+  names: ['person', 'bottle', 'cup']
+
+
+
+
+
+
+
