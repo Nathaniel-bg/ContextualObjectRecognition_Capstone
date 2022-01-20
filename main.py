@@ -3,12 +3,14 @@
 # References: 
 # Nicholas Renotte: Deep Drowsiness Detection using YOLO, Pytorch and Python, https://www.youtube.com/watch?v=tFNJGim3FXw 
 
+from statistics import mode
 import torch
 from matplotlib import pyplot as plt
 import numpy as np
 import cv2
 import pandas as pd
 import yaml
+import os
 
 def collect_data_pandas(results, collect = False):
 
@@ -37,9 +39,9 @@ def read_yaml(filter_name):
     print('done')
     return names_list
 
-
 def filtered_classes(model, filter):
-    
+
+    print('Turning filter on')
     filter_names = read_yaml(filter)
     print('obtaining index position...')
     # Creating an empty list
@@ -52,10 +54,7 @@ def filtered_classes(model, filter):
     #Returns a list of classe positions
     return index_pos
         
-
-def main_live():
-    model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
-    switch_filters = True
+def live_video(model, switch_filters):
 
     #Start video capture
     cap = cv2.VideoCapture(0)
@@ -78,11 +77,60 @@ def main_live():
         #Render the results onto the live view
         cv2.imshow('Contextual Object Detection', np.squeeze(results.render()))
 
+        #Check for inputs during video
         if cv2.waitKey(10) & 0xFF == ord('q'):
             break
+        if cv2.waitKey(10) & 0xFF == ord('w'):
+            print('turning filter off')
+            model.classes = list(range(0, len(model.names)))
+
+        if cv2.waitKey(10) & 0xFF == ord('e'):
+            switch_filters = True
     cap.release()
     cv2.destroyAllWindows()
 
 
+
+################################################
+#
+#             Processing batch images
+#
+################################################
+def process_images(model, switch_filters):
+
+    if switch_filters == True:
+        #Obtain the filtered classes from model and filter
+        fc = filtered_classes(model, 'City_Street')
+        #Set the filtered classes
+        model.classes = fc
+        switch_filters = False
+    
+    #folder_dir = 'D:\Documents\School\Fourth Year Carleton\Capstone\DataSet1-BroadwayAve'
+    folder_dir = 'D:\Documents\School\Fourth Year Carleton\Capstone\TestData'
+   
+    img = os.listdir(folder_dir)
+    imgs = []
+    loop = 25
+    for f in img:
+        img_path = os.path.join(folder_dir, f)
+        imgs.append(img_path)
+        if loop <= 0:
+            break
+        loop = loop -1
+    
+    results = model(imgs)
+    results.save()
+
+
+def main():
+    # Set the model used for detection
+    model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
+    # Determine if we want filter on/off
+    switch_filters = True
+    # Live video using webcam
+    live_video(model, switch_filters)
+    #process_images(model, switch_filters)
+
+
 if __name__ == "__main__":
-    main_live()
+    main()
