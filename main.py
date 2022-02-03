@@ -3,7 +3,6 @@
 # References: 
 # Nicholas Renotte: Deep Drowsiness Detection using YOLO, Pytorch and Python, https://www.youtube.com/watch?v=tFNJGim3FXw 
 
-from statistics import mode
 import torch
 from matplotlib import pyplot as plt
 import numpy as np
@@ -28,9 +27,32 @@ def collect_data_pandas(results, collect = False):
 
         print(name)
 
+def create_experiment_folder(parent_save, save_folder):
+    run = os.listdir(parent_save)
+    if len(run) == 0:
+        #Create the folder path for the run
+        save_folder_path = os.path.join(parent_save, save_folder)
+    else:
+        i = 1
+        #temp save folder for base name of folder
+        temp_save = save_folder
+        for r in run:
+            #Check to see if folder already exists
+            if r == save_folder:
+                #create a new folder name with an incrementing name
+                save_folder = temp_save + str(i)
+                save_folder_path = os.path.join(parent_save, save_folder)
+            i = i+1
+    print('Creating custom_runs save folder: ',save_folder_path)
+    #Create the folder
+    os.mkdir(save_folder_path)
+    #Return the save path
+    return save_folder_path
+
 def read_yaml(filter_name):
-    #Load the yaml file
+    
     print('obtaining list of names...')
+    #Load the yaml file
     with open('ContextFilters.yaml') as f:
         dict = yaml.load(f, Loader=yaml.FullLoader)
 
@@ -53,7 +75,12 @@ def filtered_classes(model, filter):
     print('done')
     #Returns a list of classe positions
     return index_pos
-        
+
+###############################################################
+#
+#                      Live video capture
+#
+###############################################################        
 def live_video(model, switch_filters):
 
     #Start video capture
@@ -72,7 +99,7 @@ def live_video(model, switch_filters):
         results = model(frame)
         
         #Collect information for inference
-        collect_data_pandas(results)
+        collect_data_pandas(results,False)
         
         #Render the results onto the live view
         cv2.imshow('Contextual Object Detection', np.squeeze(results.render()))
@@ -89,48 +116,55 @@ def live_video(model, switch_filters):
     cap.release()
     cv2.destroyAllWindows()
 
-
-
-################################################
+###############################################################
 #
-#             Processing batch images
+#                      Processing Images
 #
-################################################
-def process_images(model, switch_filters):
+###############################################################
+def process_images(model, switch_filters, folder_dir):
+    parent_save = 'custom_runs'
+    save_folder = 'exp'
 
-    if switch_filters == True:
-        #Obtain the filtered classes from model and filter
-        fc = filtered_classes(model, 'City_Street')
-        #Set the filtered classes
-        model.classes = fc
-        switch_filters = False
-    
-    #folder_dir = 'D:\Documents\School\Fourth Year Carleton\Capstone\DataSet1-BroadwayAve'
-    folder_dir = 'D:\Documents\School\Fourth Year Carleton\Capstone\TestData'
-   
-    img = os.listdir(folder_dir)
+    #Create a blank list to add all image paths
     imgs = []
-    loop = 25
-    for f in img:
-        img_path = os.path.join(folder_dir, f)
-        imgs.append(img_path)
-        if loop <= 0:
-            break
-        loop = loop -1
-    
-    results = model(imgs)
-    results.save()
+    #Check for the name of each image
+    file = os.listdir(folder_dir)
+    for img in file:
+        #create the full path for each image
+        full_path = os.path.join(folder_dir, img)
+        #Add the full path to the list
+        imgs.append(full_path)
+    print('images to process:', len(imgs))
 
+    save_folder_path = create_experiment_folder(parent_save, save_folder)
+
+    file_pos = 0
+    while file_pos <= len(imgs):
+        
+        if switch_filters == True:
+            #Obtain the filtered classes from model and filter
+            fc = filtered_classes(model, 'City_Street')
+            #Set the filtered classes
+            model.classes = fc
+            switch_filters = False
+
+        results = model(imgs[file_pos-1])
+
+        results.save(save_dir= save_folder_path)
+        
+        file_pos = file_pos +1
 
 def main():
     # Set the model used for detection
     model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
+    # model.conf = 0.6
     # Determine if we want filter on/off
     switch_filters = True
     # Live video using webcam
-    live_video(model, switch_filters)
-    #process_images(model, switch_filters)
-
+    #live_video(model, switch_filters)
+    #multi image processing
+    folder_dir = 'D:\Documents\School\Fourth Year Carleton\Capstone\TestData'
+    process_images(model, switch_filters, folder_dir)
 
 if __name__ == "__main__":
     main()
