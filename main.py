@@ -10,6 +10,10 @@ import cv2
 import pandas as pd
 import yaml
 import os
+import time
+from collections import Counter
+
+from zmq import device
 
 def collect_data_pandas(results, collect = False):
 
@@ -25,7 +29,9 @@ def collect_data_pandas(results, collect = False):
         item_class= pd.Series(detected_data['class']),
         name= pd.Series(detected_data['name'])
 
-        print(name)
+        name_count = Counter(name)
+
+        return(name_count)
 
 def create_experiment_folder(parent_save, save_folder):
     run = os.listdir(parent_save)
@@ -95,9 +101,12 @@ def live_video(model, switch_filters):
             model.classes = fc
             switch_filters = False
 
+        t0 = time.time()
         #Apply model to the image/frame
         results = model(frame)
-        
+        t1 = time.time()
+        print('time for inference ', round(t1-t0, 4))
+
         #Collect information for inference
         collect_data_pandas(results,False)
         
@@ -122,8 +131,6 @@ def live_video(model, switch_filters):
 #
 ###############################################################
 def process_images(model, switch_filters, folder_dir):
-    parent_save = 'custom_runs'
-    save_folder = 'exp'
 
     #Create a blank list to add all image paths
     imgs = []
@@ -136,10 +143,12 @@ def process_images(model, switch_filters, folder_dir):
         imgs.append(full_path)
     print('images to process:', len(imgs))
 
-    save_folder_path = create_experiment_folder(parent_save, save_folder)
+    SAVE_F_PATH = create_experiment_folder('custom_runs', 'exp')
 
     file_pos = 0
-    while file_pos <= len(imgs):
+    t0 = time.time()
+    total_counter = Counter()
+    while file_pos <= 100:# len(imgs):
         
         if switch_filters == True:
             #Obtain the filtered classes from model and filter
@@ -147,23 +156,50 @@ def process_images(model, switch_filters, folder_dir):
             #Set the filtered classes
             model.classes = fc
             switch_filters = False
-
         results = model(imgs[file_pos-1])
 
-        results.save(save_dir= save_folder_path)
+        name_count = collect_data_pandas(results, True)
+        total_counter = total_counter + name_count
+        print(total_counter)
         
+        results.save(save_dir= SAVE_F_PATH)
+
+
         file_pos = file_pos +1
+
+    t1 = time.time()
+    #total inference time for the images
+    print('Total inference time: ', round(t1-t0, 4))
+
+    #create a counter of the full model name list
+    model_counter = Counter(model.names)
+        #set all the starting values of model name counter to 0
+    for values in model_counter.elements():
+        model_counter[values] = 0
+    #add the measured total values to the model counter list
+    model_counter.update(total_counter)
+    #plot and save the results
+    print(SAVE_F_PATH)
+    SAVE_FOLDER_GRAPH = os.path.join(SAVE_F_PATH, 'Graphs')
+    print(SAVE_FOLDER_GRAPH)
+    os.mkdir(SAVE_FOLDER_GRAPH)
+
+    plt.figure(figsize=(25,15))
+    plt.barh(list(model_counter.keys()), list(model_counter.values()), height= 0.8)
+    plt.savefig(SAVE_FOLDER_GRAPH + "\custommygraph.png")
 
 def main():
     # Set the model used for detection
-    model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
+    model = torch.hub.load('ultralytics/yolov5', 'yolov5s', device='cuda:0', )
+    #switch the model to use cuda drivers instead of cpu
+    #model.cuda()
     # model.conf = 0.6
     # Determine if we want filter on/off
     switch_filters = True
     # Live video using webcam
     #live_video(model, switch_filters)
     #multi image processing
-    folder_dir = 'D:\Documents\School\Fourth Year Carleton\Capstone\TestData'
+    folder_dir = 'D:\Documents\School\Fourth Year Carleton\Capstone\Alpha_demo_Initial_imgs'
     process_images(model, switch_filters, folder_dir)
 
 if __name__ == "__main__":
