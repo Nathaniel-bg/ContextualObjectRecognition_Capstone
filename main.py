@@ -3,6 +3,7 @@
 # References: 
 # Nicholas Renotte: Deep Drowsiness Detection using YOLO, Pytorch and Python, https://www.youtube.com/watch?v=tFNJGim3FXw 
 
+from statistics import mode
 import torch
 from matplotlib import pyplot as plt
 import numpy as np
@@ -81,6 +82,46 @@ def filtered_classes(model, filter):
     print('done')
     #Returns a list of classe positions
     return index_pos
+
+def process_data(model, total_counter, time_inference, SAVE_F_PATH):
+        #create a counter of the full model name list
+    print('Creating Graph')
+    model_counter = Counter(model.names)
+        #set all the starting values of model name counter to 0
+    for values in model_counter.elements():
+        model_counter[values] = 0
+    #add the measured total values to the model counter list
+    model_counter.update(total_counter)
+
+    #plot and save the results
+    SAVE_FOLDER_GRAPH = os.path.join(SAVE_F_PATH, 'Graphs')
+    os.mkdir(SAVE_FOLDER_GRAPH)
+
+    #Create a horizontal bar plot of results
+    objects = list(model_counter.keys())
+    objects_detected = list(model_counter.values())
+    total_detections = sum(objects_detected)
+    object_percentage = []
+    for val in objects_detected:
+        object_percentage.append(round(val / total_detections, 4))
+    
+    #Creating a horizontal bar plot of inference results
+    print('Creating Graph')
+    plt.figure(figsize=(25,15))
+    plt.barh(objects, object_percentage)
+    plt.xlim([0,1])
+    plt.xlabel('Percentage of Occurence')
+    plt.ylabel('Model Objects')
+    plt.savefig(SAVE_FOLDER_GRAPH + '\custommygraph.png')
+
+    #Saving relevant data to textfile
+    print('Saving Data')
+    textfile = open(SAVE_FOLDER_GRAPH + '\Detection_Results.txt', 'w')
+    textfile.write('Total inference time' + ' , ' + str(time_inference) + '\n')
+    textfile.write('Total detections'+ ' , ' + str(total_detections) + '\n')
+    for i, count in model_counter.items():
+        textfile.write(str(objects[i]) + ', ' + str(objects_detected[i]) + ', ' + str(object_percentage[i])+ '\n')
+    textfile.close()
 
 ###############################################################
 #
@@ -169,24 +210,11 @@ def process_images(model, switch_filters, folder_dir):
 
     t1 = time.time()
     #total inference time for the images
-    print('Total inference time: ', round(t1-t0, 4))
+    time_inference = round(t1-t0, 4)
+    print('Total inference time: ', time_inference)
 
-    #create a counter of the full model name list
-    model_counter = Counter(model.names)
-        #set all the starting values of model name counter to 0
-    for values in model_counter.elements():
-        model_counter[values] = 0
-    #add the measured total values to the model counter list
-    model_counter.update(total_counter)
-    #plot and save the results
-    print(SAVE_F_PATH)
-    SAVE_FOLDER_GRAPH = os.path.join(SAVE_F_PATH, 'Graphs')
-    print(SAVE_FOLDER_GRAPH)
-    os.mkdir(SAVE_FOLDER_GRAPH)
-
-    plt.figure(figsize=(25,15))
-    plt.barh(list(model_counter.keys()), list(model_counter.values()), height= 0.8)
-    plt.savefig(SAVE_FOLDER_GRAPH + "\custommygraph.png")
+    # Create a graph of the inference results
+    process_data(model, total_counter, time_inference, SAVE_F_PATH)
 
 def main():
     # Set the model used for detection
