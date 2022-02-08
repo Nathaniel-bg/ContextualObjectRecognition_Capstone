@@ -2,7 +2,7 @@
 
 City_Street:
   nc: 11 #number of classes
-  names: ['person', 'car', 'bicycle', 'motorcycle', 'bus', 'truck', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'train', 'airplane']
+  names: ['person', 'car', 'bicycle', 'motorcycle', 'bus', 'truck', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'train', 'bench', 'cat', 'dog']
 
 
 livingroom:

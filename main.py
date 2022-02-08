@@ -35,8 +35,10 @@ def collect_data_pandas(results, collect = False):
         return(name_count)
 
 def create_experiment_folder(parent_save, save_folder):
+
     run = os.listdir(parent_save)
     if len(run) == 0:
+        print('no foolder exists with that name')
         #Create the folder path for the run
         save_folder_path = os.path.join(parent_save, save_folder)
     else:
@@ -47,7 +49,9 @@ def create_experiment_folder(parent_save, save_folder):
             #Check to see if folder already exists
             if r == save_folder:
                 #create a new folder name with an incrementing name
-                save_folder = temp_save + str(i)
+                save_folder = temp_save + '(' +str(i) + ')'
+                save_folder_path = os.path.join(parent_save, save_folder)
+            else:
                 save_folder_path = os.path.join(parent_save, save_folder)
             i = i+1
     print('Creating custom_runs save folder: ',save_folder_path)
@@ -85,7 +89,7 @@ def filtered_classes(model, filter):
 
 def process_data(model, total_counter, time_inference, SAVE_F_PATH):
         #create a counter of the full model name list
-    print('Creating Graph')
+    print('Processing information')
     model_counter = Counter(model.names)
         #set all the starting values of model name counter to 0
     for values in model_counter.elements():
@@ -105,23 +109,21 @@ def process_data(model, total_counter, time_inference, SAVE_F_PATH):
     for val in objects_detected:
         object_percentage.append(round(val / total_detections, 4))
     
-    #Creating a horizontal bar plot of inference results
+    #Create a dataframe using the processed information
+    d = {'Objects':objects, 'Objects Detected':objects_detected, 'percentage of detection':object_percentage,
+    'inference time':time_inference, 'total detections':total_detections}
+    df = pd.DataFrame(data=d)
+    #Save the data to a csv in the data folder
+    df.to_csv(SAVE_FOLDER_GRAPH + '\dataframe.csv')
+
+    #Creating a horizontal bar plot using the built dataframe
     print('Creating Graph')
-    plt.figure(figsize=(25,15))
-    plt.barh(objects, object_percentage)
+    df.plot.barh(x='Objects', y='percentage of detection', figsize=(25,15))
     plt.xlim([0,1])
     plt.xlabel('Percentage of Occurence')
     plt.ylabel('Model Objects')
     plt.savefig(SAVE_FOLDER_GRAPH + '\custommygraph.png')
 
-    #Saving relevant data to textfile
-    print('Saving Data')
-    textfile = open(SAVE_FOLDER_GRAPH + '\Detection_Results.txt', 'w')
-    textfile.write('Total inference time' + ' , ' + str(time_inference) + '\n')
-    textfile.write('Total detections'+ ' , ' + str(total_detections) + '\n')
-    for i, count in model_counter.items():
-        textfile.write(str(objects[i]) + ', ' + str(objects_detected[i]) + ', ' + str(object_percentage[i])+ '\n')
-    textfile.close()
 
 ###############################################################
 #
@@ -184,12 +186,12 @@ def process_images(model, switch_filters, folder_dir):
         imgs.append(full_path)
     print('images to process:', len(imgs))
 
-    SAVE_F_PATH = create_experiment_folder('custom_runs', 'exp')
+    SAVE_F_PATH = create_experiment_folder('custom_runs', 'yolov5l_filtered_1400')
 
     file_pos = 0
     t0 = time.time()
     total_counter = Counter()
-    while file_pos <= 100:# len(imgs):
+    while file_pos <= 5: #len(imgs):
         
         if switch_filters == True:
             #Obtain the filtered classes from model and filter
@@ -201,7 +203,6 @@ def process_images(model, switch_filters, folder_dir):
 
         name_count = collect_data_pandas(results, True)
         total_counter = total_counter + name_count
-        print(total_counter)
         
         results.save(save_dir= SAVE_F_PATH)
 
@@ -218,7 +219,7 @@ def process_images(model, switch_filters, folder_dir):
 
 def main():
     # Set the model used for detection
-    model = torch.hub.load('ultralytics/yolov5', 'yolov5s', device='cuda:0', )
+    model = torch.hub.load('ultralytics/yolov5', 'yolov5l', device='cuda:0', )
     #switch the model to use cuda drivers instead of cpu
     #model.cuda()
     # model.conf = 0.6
