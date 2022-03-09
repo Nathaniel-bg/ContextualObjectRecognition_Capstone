@@ -199,6 +199,8 @@ def process_images(model, switch_filters, folder_dir):
     #Create a blank list to add all image paths
     imgs = []
     #Check for the name of each image
+
+    
     file = os.listdir(folder_dir)
     for img in file:
         #create the full path for each image
@@ -207,9 +209,9 @@ def process_images(model, switch_filters, folder_dir):
         imgs.append(full_path)
     print('images to process:', len(imgs))
 
-    SAVE_F_PATH = create_experiment_folder('custom_runs', 'Alpha')
+    SAVE_F_PATH = create_experiment_folder('custom_runs', 'exp')
 
-    file_pos = 300
+    file_pos = 1
     t0 = time.time()
     total_counter = Counter()
     while file_pos <= 400:#len(imgs):
@@ -276,7 +278,7 @@ def parse_opt():
     return opt
 
 def main(opt):
-
+    #Create a run with desired variables
     run(**vars(opt))
 
     
