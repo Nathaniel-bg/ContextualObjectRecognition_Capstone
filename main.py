@@ -214,7 +214,7 @@ def process_images(model, switch_filters, folder_dir):
     file_pos = 1
     t0 = time.time()
     total_counter = Counter()
-    while file_pos <= 400:#len(imgs):
+    while file_pos <= 100:#len(imgs):
         
         if switch_filters == True:
             #Obtain the filtered classes from model and filter
