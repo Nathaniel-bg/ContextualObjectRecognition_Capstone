@@ -96,6 +96,11 @@ def filtered_classes(model, filter):
     #Returns a list of classe positions
     return index_pos
 
+def dynamic_filter():
+
+    print('')
+
+
 def process_data(model, total_counter, time_inference, SAVE_F_PATH):
         #create a counter of the full model name list
     print('Processing information')
@@ -171,7 +176,7 @@ def live_video(model, switch_filters):
         results = model(frame)
 
         #Collect information for inference
-        collect_data_pandas(results,False)
+        #collect_data_pandas(results,False)
         
         #Render the results onto the live view
         cv2.imshow('Contextual Object Detection', np.squeeze(results.render()))
@@ -191,7 +196,7 @@ def live_video(model, switch_filters):
 
 ###############################################################
 #
-#                      Processing Images
+#               Processing Images - static filter
 #
 ###############################################################
 def process_images(model, switch_filters, folder_dir):
@@ -242,7 +247,7 @@ def process_images(model, switch_filters, folder_dir):
     process_data(model, total_counter, time_inference, SAVE_F_PATH)
 
 #main run properties
-def run(weights='yolov5l',
+def run(weights='yolov5s',
         type_detect='',
         filter=False,
         images_path='',
@@ -250,11 +255,12 @@ def run(weights='yolov5l',
         iou_thres=0.45):
 
     if weights == 'yolov5s' or weights == 'yolov5m' or weights == 'yolov5l':
-        model = torch.hub.load('ultralytics/yolov5', 'yolov5l', device='cuda:0')
+        model = torch.hub.load('ultralytics/yolov5', weights)
     #Run the custom model values
     if weights == 'custom':
         model = torch.hub.load('ultralytics/yolov5', 'custom', path='D:\Documents\CapstoneProject\ContextualObjectRecognition_Capstone\last.pt')
     
+    model.cuda()
     model.conf = conf_thres
     model.iou = iou_thres
     switch_filters = filter
@@ -268,7 +274,7 @@ def run(weights='yolov5l',
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default='yolov5l', help='model to use (yolov5, custom')
+    parser.add_argument('--weights', type=str, default='yolov5s', help='model to use (yolov5, custom')
     parser.add_argument('--type-detect', default='video', help='images or video')
     parser.add_argument('--filter', type=bool, default=False, help='True/False for filter on/off')
     parser.add_argument('--images-path', type=str, help='Specify path for images, video')
@@ -282,7 +288,6 @@ def main(opt):
     run(**vars(opt))
 
     
-
 if __name__ == "__main__":
     opt = parse_opt()
     main(opt)
