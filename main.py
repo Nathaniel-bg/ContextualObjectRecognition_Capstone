@@ -3,6 +3,7 @@
 # References: 
 # Nicholas Renotte: Deep Drowsiness Detection using YOLO, Pytorch and Python, https://www.youtube.com/watch?v=tFNJGim3FXw 
 
+from operator import mod
 from statistics import mode
 import torch
 from matplotlib import pyplot as plt
@@ -13,9 +14,17 @@ import yaml
 import os
 import time
 from collections import Counter
+import argparse
+from pathlib import Path
+import sys
 
-from zmq import device
+FILE = Path(__file__).resolve()
+ROOT = FILE.parents[0]  # YOLOv5 root directory
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))  # add ROOT to PATH
+ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
+# Function to collect pandas from single inference result
 def collect_data_pandas(results, collect = False):
 
     if collect == True:
@@ -87,9 +96,18 @@ def filtered_classes(model, filter):
     #Returns a list of classe positions
     return index_pos
 
+def dynamic_filter():
+
+    print('')
+
+
 def process_data(model, total_counter, time_inference, SAVE_F_PATH):
         #create a counter of the full model name list
     print('Processing information')
+    #make a basic save of the inference counter data
+    print(total_counter)
+
+    #Create a counter for all model names
     model_counter = Counter(model.names)
         #set all the starting values of model name counter to 0
     for values in model_counter.elements():
@@ -101,7 +119,7 @@ def process_data(model, total_counter, time_inference, SAVE_F_PATH):
     SAVE_FOLDER_GRAPH = os.path.join(SAVE_F_PATH, 'Graphs')
     os.mkdir(SAVE_FOLDER_GRAPH)
 
-    #Create a horizontal bar plot of results
+    #data processing to be stored in csv
     objects = list(model_counter.keys())
     objects_detected = list(model_counter.values())
     total_detections = sum(objects_detected)
@@ -109,6 +127,13 @@ def process_data(model, total_counter, time_inference, SAVE_F_PATH):
     for val in objects_detected:
         object_percentage.append(round(val / total_detections, 4))
     
+    #data processing to be displayed in graph
+    graph_objects = list(total_counter.keys())
+    graph_detected = list(total_counter.values())
+    graph_percentage = []
+    for val in graph_detected:
+        graph_percentage.append(round(val / total_detections, 4))
+
     #Create a dataframe using the processed information
     d = {'Objects':objects, 'Objects Detected':objects_detected, 'percentage of detection':object_percentage,
     'inference time':time_inference, 'total detections':total_detections}
@@ -118,8 +143,9 @@ def process_data(model, total_counter, time_inference, SAVE_F_PATH):
 
     #Creating a horizontal bar plot using the built dataframe
     print('Creating Graph')
-    df.plot.barh(x='Objects', y='percentage of detection', figsize=(25,15))
-    plt.xlim([0,1])
+    #df.plot.barh(x='Objects', y='percentage of detection', figsize=(25,15))
+    plt.figure(figsize=(25,15))
+    plt.barh(graph_objects, graph_percentage)
     plt.xlabel('Percentage of Occurence')
     plt.ylabel('Model Objects')
     plt.savefig(SAVE_FOLDER_GRAPH + '\custommygraph.png')
@@ -139,19 +165,18 @@ def live_video(model, switch_filters):
         
         if switch_filters == True:
             #Obtain the filtered classes from model and filter
-            fc = filtered_classes(model, 'Nate_basement')
+            filter_type = 'Nate_basement'
+            fc = filtered_classes(model, filter_type)
+            print('filter ON: ' + filter_type)
             #Set the filtered classes
             model.classes = fc
             switch_filters = False
 
-        t0 = time.time()
         #Apply model to the image/frame
         results = model(frame)
-        t1 = time.time()
-        print('time for inference ', round(t1-t0, 4))
 
         #Collect information for inference
-        collect_data_pandas(results,False)
+        #collect_data_pandas(results,False)
         
         #Render the results onto the live view
         cv2.imshow('Contextual Object Detection', np.squeeze(results.render()))
@@ -165,12 +190,13 @@ def live_video(model, switch_filters):
 
         if cv2.waitKey(10) & 0xFF == ord('e'):
             switch_filters = True
+            
     cap.release()
     cv2.destroyAllWindows()
 
 ###############################################################
 #
-#                      Processing Images
+#               Processing Images - static filter
 #
 ###############################################################
 def process_images(model, switch_filters, folder_dir):
@@ -178,6 +204,8 @@ def process_images(model, switch_filters, folder_dir):
     #Create a blank list to add all image paths
     imgs = []
     #Check for the name of each image
+
+    
     file = os.listdir(folder_dir)
     for img in file:
         #create the full path for each image
@@ -186,12 +214,12 @@ def process_images(model, switch_filters, folder_dir):
         imgs.append(full_path)
     print('images to process:', len(imgs))
 
-    SAVE_F_PATH = create_experiment_folder('custom_runs', 'yolov5l_filtered_1400')
+    SAVE_F_PATH = create_experiment_folder('custom_runs', 'exp')
 
-    file_pos = 0
+    file_pos = 1
     t0 = time.time()
     total_counter = Counter()
-    while file_pos <= 5: #len(imgs):
+    while file_pos <= 100:#len(imgs):
         
         if switch_filters == True:
             #Obtain the filtered classes from model and filter
@@ -199,13 +227,15 @@ def process_images(model, switch_filters, folder_dir):
             #Set the filtered classes
             model.classes = fc
             switch_filters = False
+            
         results = model(imgs[file_pos-1])
 
+        #Collect the results inference data
         name_count = collect_data_pandas(results, True)
         total_counter = total_counter + name_count
         
+        #Save the inference results to path
         results.save(save_dir= SAVE_F_PATH)
-
 
         file_pos = file_pos +1
 
@@ -213,23 +243,51 @@ def process_images(model, switch_filters, folder_dir):
     #total inference time for the images
     time_inference = round(t1-t0, 4)
     print('Total inference time: ', time_inference)
-
     # Create a graph of the inference results
     process_data(model, total_counter, time_inference, SAVE_F_PATH)
 
-def main():
-    # Set the model used for detection
-    model = torch.hub.load('ultralytics/yolov5', 'yolov5l', device='cuda:0', )
-    #switch the model to use cuda drivers instead of cpu
-    #model.cuda()
-    # model.conf = 0.6
-    # Determine if we want filter on/off
-    switch_filters = True
-    # Live video using webcam
-    #live_video(model, switch_filters)
-    #multi image processing
-    folder_dir = 'D:\Documents\School\Fourth Year Carleton\Capstone\Alpha_demo_Initial_imgs'
-    process_images(model, switch_filters, folder_dir)
+#main run properties
+def run(weights='yolov5s',
+        type_detect='',
+        filter=False,
+        images_path='',
+        conf_thres=0.25,
+        iou_thres=0.45):
 
+    if weights == 'yolov5s' or weights == 'yolov5m' or weights == 'yolov5l':
+        model = torch.hub.load('ultralytics/yolov5', weights)
+    #Run the custom model values
+    if weights == 'custom':
+        model = torch.hub.load('ultralytics/yolov5', 'custom', path='D:\Documents\CapstoneProject\ContextualObjectRecognition_Capstone\last.pt')
+    
+    model.cuda()
+    model.conf = conf_thres
+    model.iou = iou_thres
+    switch_filters = filter
+    
+    if type_detect == 'images':
+        process_images(model, switch_filters, images_path)
+    
+    if type_detect == 'video':
+        live_video(model, switch_filters)
+    
+
+def parse_opt():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--weights', type=str, default='yolov5s', help='model to use (yolov5, custom')
+    parser.add_argument('--type-detect', default='video', help='images or video')
+    parser.add_argument('--filter', type=bool, default=False, help='True/False for filter on/off')
+    parser.add_argument('--images-path', type=str, help='Specify path for images, video')
+    parser.add_argument('--conf-thres', type=float, default=0.25, help='confidence threshold')
+    parser.add_argument('--iou-thres', type=float, default=0.45, help='NMS IoU threshold')
+    opt = parser.parse_args()
+    return opt
+
+def main(opt):
+    #Create a run with desired variables
+    run(**vars(opt))
+
+    
 if __name__ == "__main__":
-    main()
+    opt = parse_opt()
+    main(opt)
